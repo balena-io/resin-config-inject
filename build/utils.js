@@ -75,15 +75,20 @@ exports.getEmptyBuffer = function(size) {
  */
 
 exports.isNullBuffer = function(buffer) {
+  var i, _i, _len;
   if (buffer == null) {
     throw new errors.ResinMissingParameter('buffer');
   }
   if (!Buffer.isBuffer(buffer)) {
     throw new errors.ResinInvalidParameter('buffer', buffer, 'not a buffer');
   }
-  return _.all(buffer.toJSON(), function(byte) {
-    return byte === 0;
-  });
+  for (_i = 0, _len = buffer.length; _i < _len; _i++) {
+    i = buffer[_i];
+    if (i !== 0) {
+      return false;
+    }
+  }
+  return true;
 };
 
 

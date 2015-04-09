@@ -76,6 +76,13 @@ Support
 
 If you're having any problem, please [raise an issue](https://github.com/resin-io/resin-config-inject/issues/new) on GitHub.
 
+ChangeLog
+---------
+
+### v1.0.1
+
+- Fix incompatibility issues with Node v0.11.
+
 License
 -------
 

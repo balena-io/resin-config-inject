@@ -72,8 +72,9 @@ exports.isNullBuffer = (buffer) ->
 	if not Buffer.isBuffer(buffer)
 		throw new errors.ResinInvalidParameter('buffer', buffer, 'not a buffer')
 
-	return _.all buffer.toJSON(), (byte) ->
-		return byte is 0
+	for i in buffer when i isnt 0
+		return false
+	return true
 
 ###*
 # @summary Convert an Object into a buffer.

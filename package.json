@@ -17,7 +17,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "gulp test && coffee tests/image/test-io.coffee",
+    "test": "gulp test",
     "prepublish": "gulp build"
   },
   "author": "Juan Cruz Viotti <juanchiviotti@gmail.com>",

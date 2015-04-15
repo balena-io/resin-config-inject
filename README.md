@@ -91,6 +91,10 @@ If you're having any problem, please [raise an issue](https://github.com/resin-i
 ChangeLog
 ---------
 
+### v2.0.0
+
+- Handle partition definition instead of byte offsets in the public interface.
+
 ### v1.0.1
 
 - Fix incompatibility issues with Node v0.11.

@@ -37,6 +37,8 @@
   "dependencies": {
     "async": "^0.9.0",
     "lodash": "^3.6.0",
-    "resin-errors": "^1.0.2"
+    "mbr": "^0.3.0",
+    "resin-errors": "^1.0.2",
+    "underscore.string": "^3.0.3"
   }
 }

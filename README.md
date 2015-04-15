@@ -19,36 +19,48 @@ $ npm install --save resin-config-inject
 Documentation
 -------------
 
-### inject.write(String image, Object config, Number position, Function callback)
+### inject.write(String image, Object config, Partition partition, Function callback)
 
 Write a config object to an image.
 
-The exact byte position to write the config.json to is device specific. Please refer to device bundles for more details.
+See the [Partition Definition section](https://github.com/resin-io/resin-config-inject#partition-definition) for more information about the partition parameter.
 
 The callback gets passed one argument: `(error)`.
 
 Example:
 
 ```coffee
-inject.write 'path/to/rpi.img', hello: 'world', 128, (error) ->
+inject.write 'path/to/rpi.img', hello: 'world', 3, (error) ->
 	throw error if error?
 ```
 
-### inject.read(String image, Number position, Function callback)
+### inject.read(String image, Partition partition, Function callback)
 
 Read a config object from an image.
 
-The exact byte position to read the config.json from is device specific. Please refer to device bundles for more details.
+See the [Partition Definition section](https://github.com/resin-io/resin-config-inject#partition-definition) for more information about the partition parameter.
 
 The callback gets passed two arguments: `(error, config)`.
 
 Example:
 
 ```coffee
-inject.read 'path/to/rpi.img', 128, (error, config) ->
+inject.read 'path/to/rpi.img', '4:1', (error, config) ->
 	throw error if error?
 	console.log(config)
 ```
+
+Partition Definition
+--------------------
+
+A partition definition is a number or string representing the primary partition number, or an extended partition number along with a logical partition number.
+
+Notice that this definition is device dependent. Refer to specific device bundles for this information.
+
+Examples:
+
+- `4` is the primary partition number four.
+- `3:1` is the first logical partition of the third primary extended partition.
 
 Tests
 -----

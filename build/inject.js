@@ -1,20 +1,16 @@
-var errors, image, partition, settings, utils, _;
+var errors, partition, strategy, _;
 
 _ = require('lodash');
 
 errors = require('resin-errors');
 
-image = require('./image');
-
-utils = require('./utils');
-
-settings = require('./settings');
-
 partition = require('./partition');
+
+strategy = require('./strategies/fat');
 
 
 /**
- * @summary Write a config buffer to an image
+ * @summary Write a config object to an image
  * @public
  * @function
  *
@@ -29,7 +25,6 @@ partition = require('./partition');
  */
 
 exports.write = function(imagePath, config, definition, callback) {
-  var data;
   if (config == null) {
     throw new errors.ResinMissingParameter('config');
   }
@@ -42,18 +37,18 @@ exports.write = function(imagePath, config, definition, callback) {
   if (!_.isFunction(callback)) {
     throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
   }
-  data = utils.configToBuffer(config, settings.configSize);
-  return partition.getPosition(imagePath, partition.parse(definition), function(error, position) {
+  definition = partition.parse(definition);
+  return partition.getPosition(imagePath, definition, function(error, position) {
     if (error != null) {
       return callback(error);
     }
-    return image.writeBufferToPosition(imagePath, data, position, callback);
+    return strategy.write(imagePath, config, position, definition, callback);
   });
 };
 
 
 /**
- * @summary Read a config buffer from an image
+ * @summary Read a config object from an image
  * @public
  * @function
  *
@@ -68,28 +63,45 @@ exports.write = function(imagePath, config, definition, callback) {
  */
 
 exports.read = function(imagePath, definition, callback) {
+  if (imagePath == null) {
+    throw new errors.ResinMissingParameter('image');
+  }
+  if (!_.isString(imagePath)) {
+    throw new errors.ResinInvalidParameter('image', imagePath, 'not a string');
+  }
   if (callback == null) {
     throw new errors.ResinMissingParameter('callback');
   }
   if (!_.isFunction(callback)) {
     throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
   }
-  return partition.getPosition(imagePath, partition.parse(definition), function(error, position) {
+  definition = partition.parse(definition);
+  return partition.getPosition(imagePath, definition, function(error, position) {
     if (error != null) {
       return callback(error);
     }
-    return image.readBufferFromPosition(imagePath, position, function(error, data) {
-      var config;
-      if (error != null) {
-        return callback(error);
-      }
-      try {
-        config = utils.bufferToConfig(data);
-      } catch (_error) {
-        error = _error;
-        return callback(error);
-      }
-      return callback(null, config);
-    });
+    return strategy.read(imagePath, position, definition, callback);
   });
+};
+
+
+/**
+ * @summary Write config object to a partition and return a stream
+ * @public
+ * @function
+ *
+ * @description The stream corresponds to the written partition.
+ *
+ * @param {String} image - image path
+ * @param {Object} config - config object
+ * @param {String|Number} definition - partition definition
+ * @param {Function} callback - callback (error, stream)
+ *
+ * @example
+ *	inject.writePartition 'path/to/rpi.img', { hello: 'world' }, '4:1', (error, stream) ->
+ *		throw error if error?
+ */
+
+exports.writePartition = function(imagePath, config, definition, callback) {
+  return strategy.writePartition(imagePath, config, partition.parse(definition), callback);
 };

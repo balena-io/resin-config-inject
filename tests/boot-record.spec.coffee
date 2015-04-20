@@ -79,14 +79,6 @@ describe 'Boot Record:', ->
 			beforeEach ->
 				@mbr = rpiMBR
 
-			it 'should have a type string', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isString(result.type)).to.be.true
-
-			it 'should have a tableOffset number', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isNumber(result.tableOffset)).to.be.true
-
 			it 'should have a partitions array', ->
 				result = bootRecord.parse(@mbr)
 				expect(_.isArray(result.partitions)).to.be.true
@@ -96,14 +88,6 @@ describe 'Boot Record:', ->
 			beforeEach ->
 				@mbr = rpi2MBR
 
-			it 'should have a type string', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isString(result.type)).to.be.true
-
-			it 'should have a tableOffset number', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isNumber(result.tableOffset)).to.be.true
-
 			it 'should have a partitions array', ->
 				result = bootRecord.parse(@mbr)
 				expect(_.isArray(result.partitions)).to.be.true
@@ -112,14 +96,6 @@ describe 'Boot Record:', ->
 
 			beforeEach ->
 				@mbr = bbbMBR
-
-			it 'should have a type string', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isString(result.type)).to.be.true
-
-			it 'should have a tableOffset number', ->
-				result = bootRecord.parse(@mbr)
-				expect(_.isNumber(result.tableOffset)).to.be.true
 
 			it 'should have a partitions array', ->
 				result = bootRecord.parse(@mbr)

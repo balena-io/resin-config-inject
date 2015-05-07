@@ -1,9 +1,11 @@
 _ = require('lodash')
 _.str = require('underscore.string')
 errors = require('resin-errors')
+fileslice = require('fileslice')
 bootRecord = require('./boot-record')
 
 SEPARATOR = ':'
+SECTOR_SIZE = 512
 
 ###*
 # @summary Parse a partition definition
@@ -114,10 +116,34 @@ exports.getPartitionOffset = (partition) ->
 	if not _.isNumber(partition.firstLBA)
 		throw new errors.ResinInvalidOption('firstLBA', partition.firstLBA, 'not a number')
 
-	return partition.firstLBA * 512
+	return partition.firstLBA * SECTOR_SIZE
 
 ###*
-# @summary Get a partition position
+# @summary Get the partition size in bytes
+# @protected
+# @function
+#
+# @param {Object} partition - partition
+# @returns {Number} partition size
+#
+# @example
+# size = partition.getPartitionSize(myPartition)
+###
+exports.getPartitionSize = (partition) ->
+
+	if not partition?
+		throw new errors.ResinMissingParameter('partition')
+
+	if not partition.sectors?
+		throw new errors.ResinMissingOption('sectors')
+
+	if not _.isNumber(partition.sectors)
+		throw new errors.ResinInvalidOption('sectors', partition.sectors, 'not a number')
+
+	return partition.sectors * SECTOR_SIZE
+
+###*
+# @summary Get a partition object from a definition
 # @protected
 # @function
 #
@@ -126,11 +152,11 @@ exports.getPartitionOffset = (partition) ->
 # @param {Function} callback - callback
 #
 # @example
-# partition.getPosition 'image.img', partition.parse('4:1'), (error, position) ->
+# partition.getPartitionFromDefinition 'image.img', partition.parse('4:1'), (error, partition) ->
 #		throw error if error?
-#		console.log(position)
+#		console.log(partition)
 ###
-exports.getPosition = (image, definition, callback) ->
+exports.getPartitionFromDefinition = (image, definition, callback) ->
 
 	if not image?
 		throw new errors.ResinMissingParameter('image')
@@ -161,10 +187,10 @@ exports.getPosition = (image, definition, callback) ->
 		catch error
 			return callback(error)
 
-		primaryPartitionOffset = exports.getPartitionOffset(primaryPartition)
-
 		if not definition.logical? or definition.logical is 0
-			return callback(null, primaryPartitionOffset)
+			return callback(null, primaryPartition)
+
+		primaryPartitionOffset = exports.getPartitionOffset(primaryPartition)
 
 		bootRecord.getExtended image, primaryPartitionOffset, (error, ebr) ->
 			return callback(error) if error?
@@ -178,6 +204,71 @@ exports.getPosition = (image, definition, callback) ->
 				return callback(error)
 
 			logicalPartition.firstLBA += primaryPartition.firstLBA
-			logicalPartitionOffset = exports.getPartitionOffset(logicalPartition)
 
-			return callback(null, logicalPartitionOffset)
+			return callback(null, logicalPartition)
+
+###*
+# @summary Get a partition position
+# @protected
+# @function
+#
+# @param {String} image - image path
+# @param {Object} definition - parition definition
+# @param {Function} callback - callback
+#
+# @example
+# partition.getPosition 'image.img', partition.parse('4:1'), (error, position) ->
+#		throw error if error?
+#		console.log(position)
+###
+exports.getPosition = (image, definition, callback) ->
+
+	if not callback?
+		throw new errors.ResinMissingParameter('callback')
+
+	if not _.isFunction(callback)
+		throw new errors.ResinInvalidParameter('callback', callback, 'not a function')
+
+	exports.getPartitionFromDefinition image, definition, (error, partition) ->
+		return callback(error) if error?
+		partitionOffset = exports.getPartitionOffset(partition)
+		return callback(null, partitionOffset)
+
+###*
+# @summary Copy a partition to a separate file
+# @protected
+# @function
+#
+# @param {String} image - image path
+# @param {Object} definition - parition definition
+# @param {String} output - output path
+# @param {Function} callback - callback
+#
+# @example
+# partition.copyPartition 'image.img', partition.parse('4:1'), 'output', (error) ->
+#		throw error if error?
+###
+exports.copyPartition = (image, definition, output, callback) ->
+
+	if not output?
+		throw new errors.ResinMissingParameter('output')
+
+	if not _.isString(output)
+		throw new errors.ResinInvalidParameter('output', output, 'not a string')
+
+	if not callback?
+		throw new errors.ResinMissingParameter('callback')
+
+	if not _.isFunction(callback)
+		throw new errors.ResinInvalidParameter('callback', callback, 'not a function')
+
+	exports.getPartitionFromDefinition image, definition, (error, partition) ->
+		return callback(error) if error?
+
+		try
+			start = exports.getPartitionOffset(partition)
+			end = start + exports.getPartitionSize(partition)
+		catch error
+			return callback(error)
+
+		fileslice.copy(image, output, { start, end }, callback)

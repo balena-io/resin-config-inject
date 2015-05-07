@@ -52,7 +52,7 @@ exports.read = (image, position = 0, callback) ->
 			fs.open(image, 'r+', callback)
 
 		(fd, callback) ->
-			fs.read fd, result, 0, BOOT_RECORD_SIZE, 0, (error) ->
+			fs.read fd, result, 0, BOOT_RECORD_SIZE, position, (error) ->
 				return callback(error) if error?
 				return callback(null, fd)
 

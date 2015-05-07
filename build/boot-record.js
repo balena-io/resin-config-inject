@@ -60,7 +60,7 @@ exports.read = function(image, position, callback) {
     function(callback) {
       return fs.open(image, 'r+', callback);
     }, function(fd, callback) {
-      return fs.read(fd, result, 0, BOOT_RECORD_SIZE, 0, function(error) {
+      return fs.read(fd, result, 0, BOOT_RECORD_SIZE, position, function(error) {
         if (error != null) {
           return callback(error);
         }

@@ -1,4 +1,4 @@
-var SEPARATOR, bootRecord, errors, _;
+var SECTOR_SIZE, SEPARATOR, bootRecord, errors, fileslice, _;
 
 _ = require('lodash');
 
@@ -6,9 +6,13 @@ _.str = require('underscore.string');
 
 errors = require('resin-errors');
 
+fileslice = require('fileslice');
+
 bootRecord = require('./boot-record');
 
 SEPARATOR = ':';
+
+SECTOR_SIZE = 512;
 
 
 /**
@@ -124,12 +128,38 @@ exports.getPartitionOffset = function(partition) {
   if (!_.isNumber(partition.firstLBA)) {
     throw new errors.ResinInvalidOption('firstLBA', partition.firstLBA, 'not a number');
   }
-  return partition.firstLBA * 512;
+  return partition.firstLBA * SECTOR_SIZE;
 };
 
 
 /**
- * @summary Get a partition position
+ * @summary Get the partition size in bytes
+ * @protected
+ * @function
+ *
+ * @param {Object} partition - partition
+ * @returns {Number} partition size
+ *
+ * @example
+ * size = partition.getPartitionSize(myPartition)
+ */
+
+exports.getPartitionSize = function(partition) {
+  if (partition == null) {
+    throw new errors.ResinMissingParameter('partition');
+  }
+  if (partition.sectors == null) {
+    throw new errors.ResinMissingOption('sectors');
+  }
+  if (!_.isNumber(partition.sectors)) {
+    throw new errors.ResinInvalidOption('sectors', partition.sectors, 'not a number');
+  }
+  return partition.sectors * SECTOR_SIZE;
+};
+
+
+/**
+ * @summary Get a partition object from a definition
  * @protected
  * @function
  *
@@ -138,12 +168,12 @@ exports.getPartitionOffset = function(partition) {
  * @param {Function} callback - callback
  *
  * @example
- * partition.getPosition 'image.img', partition.parse('4:1'), (error, position) ->
+ * partition.getPartitionFromDefinition 'image.img', partition.parse('4:1'), (error, partition) ->
  *		throw error if error?
- *		console.log(position)
+ *		console.log(partition)
  */
 
-exports.getPosition = function(image, definition, callback) {
+exports.getPartitionFromDefinition = function(image, definition, callback) {
   if (image == null) {
     throw new errors.ResinMissingParameter('image');
   }
@@ -176,12 +206,12 @@ exports.getPosition = function(image, definition, callback) {
       error = _error;
       return callback(error);
     }
-    primaryPartitionOffset = exports.getPartitionOffset(primaryPartition);
     if ((definition.logical == null) || definition.logical === 0) {
-      return callback(null, primaryPartitionOffset);
+      return callback(null, primaryPartition);
     }
+    primaryPartitionOffset = exports.getPartitionOffset(primaryPartition);
     return bootRecord.getExtended(image, primaryPartitionOffset, function(error, ebr) {
-      var logicalPartition, logicalPartitionOffset;
+      var logicalPartition;
       if (error != null) {
         return callback(error);
       }
@@ -195,8 +225,88 @@ exports.getPosition = function(image, definition, callback) {
         return callback(error);
       }
       logicalPartition.firstLBA += primaryPartition.firstLBA;
-      logicalPartitionOffset = exports.getPartitionOffset(logicalPartition);
-      return callback(null, logicalPartitionOffset);
+      return callback(null, logicalPartition);
     });
+  });
+};
+
+
+/**
+ * @summary Get a partition position
+ * @protected
+ * @function
+ *
+ * @param {String} image - image path
+ * @param {Object} definition - parition definition
+ * @param {Function} callback - callback
+ *
+ * @example
+ * partition.getPosition 'image.img', partition.parse('4:1'), (error, position) ->
+ *		throw error if error?
+ *		console.log(position)
+ */
+
+exports.getPosition = function(image, definition, callback) {
+  if (callback == null) {
+    throw new errors.ResinMissingParameter('callback');
+  }
+  if (!_.isFunction(callback)) {
+    throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
+  }
+  return exports.getPartitionFromDefinition(image, definition, function(error, partition) {
+    var partitionOffset;
+    if (error != null) {
+      return callback(error);
+    }
+    partitionOffset = exports.getPartitionOffset(partition);
+    return callback(null, partitionOffset);
+  });
+};
+
+
+/**
+ * @summary Copy a partition to a separate file
+ * @protected
+ * @function
+ *
+ * @param {String} image - image path
+ * @param {Object} definition - parition definition
+ * @param {String} output - output path
+ * @param {Function} callback - callback
+ *
+ * @example
+ * partition.copyPartition 'image.img', partition.parse('4:1'), 'output', (error) ->
+ *		throw error if error?
+ */
+
+exports.copyPartition = function(image, definition, output, callback) {
+  if (output == null) {
+    throw new errors.ResinMissingParameter('output');
+  }
+  if (!_.isString(output)) {
+    throw new errors.ResinInvalidParameter('output', output, 'not a string');
+  }
+  if (callback == null) {
+    throw new errors.ResinMissingParameter('callback');
+  }
+  if (!_.isFunction(callback)) {
+    throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
+  }
+  return exports.getPartitionFromDefinition(image, definition, function(error, partition) {
+    var end, start;
+    if (error != null) {
+      return callback(error);
+    }
+    try {
+      start = exports.getPartitionOffset(partition);
+      end = start + exports.getPartitionSize(partition);
+    } catch (_error) {
+      error = _error;
+      return callback(error);
+    }
+    return fileslice.copy(image, output, {
+      start: start,
+      end: end
+    }, callback);
   });
 };

@@ -166,6 +166,162 @@ describe 'Partition:', ->
 			result = partition.getPartitionOffset(firstLBA: 512)
 			expect(result).to.equal(262144)
 
+	describe '.getPartitionSize()', ->
+
+		it 'should throw if no partition', ->
+			expect ->
+				partition.getPartitionSize(null)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if no partition.sectors', ->
+			expect ->
+				partition.getPartitionSize({})
+			.to.throw(errors.ResinMissingOption)
+
+		it 'should throw if partition.sectors is not a number', ->
+			expect ->
+				partition.getPartitionSize({ sectors: '123' })
+			.to.throw(errors.ResinInvalidOption)
+
+		describe 'given a raspberry pi 1 config partition', ->
+
+			beforeEach ->
+				@partition =
+					sectors: 8192
+
+			it 'should return the correct byte size', ->
+				expect(partition.getPartitionSize(@partition)).to.equal(4194304)
+
+	describe '.getPartitionFromDefinition()', ->
+
+		it 'should throw if no image', ->
+			expect ->
+				partition.getPartitionFromDefinition(null, { primary: 3, logical: 1 }, _.noop)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if image is not a string', ->
+			expect ->
+				partition.getPartitionFromDefinition(123, { primary: 3, logical: 1 }, _.noop)
+			.to.throw(errors.ResinInvalidParameter)
+
+		it 'should throw if no definition', ->
+			expect ->
+				partition.getPartitionFromDefinition('image', null, _.noop)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if definition is not an object', ->
+			expect ->
+				partition.getPartitionFromDefinition('image', [ 'hello' ], _.noop)
+			.to.throw(errors.ResinInvalidParameter)
+
+		it 'should throw if no definition.primary', ->
+			expect ->
+				partition.getPartitionFromDefinition('image', { logical: 1 }, _.noop)
+			.to.throw(errors.ResinMissingOption)
+
+		it 'should throw if no callback', ->
+			expect ->
+				partition.getPartitionFromDefinition('image', { primary: 3, logical: 1 }, null)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if callback is not a function', ->
+			expect ->
+				partition.getPartitionFromDefinition('image', { primary: 3, logical: 1 }, [ _.noop ])
+			.to.throw(errors.ResinInvalidParameter)
+
+		describe 'given an invalid primary partition', ->
+
+			beforeEach ->
+				@bootRecordGetMasterStub = sinon.stub(bootRecord, 'getMaster')
+				@bootRecordGetMasterStub.yields null,
+					partitions: [
+						{ firstLBA: 256, info: 'first' }
+						{ firstLBA: 512, info: 'second' }
+					]
+
+			afterEach ->
+				@bootRecordGetMasterStub.restore()
+
+			it 'should return an error', (done) ->
+				partition.getPartitionFromDefinition 'image', { primary: 5 }, (error, position) ->
+					expect(error).to.be.an.instanceof(Error)
+					expect(error.message).to.equal('Partition not found: 5.')
+					expect(position).to.not.exist
+					done()
+
+		describe 'given a valid primary partition', ->
+
+			beforeEach ->
+				@bootRecordGetMasterStub = sinon.stub(bootRecord, 'getMaster')
+				@bootRecordGetMasterStub.yields null,
+					partitions: [
+						{ firstLBA: 256, info: 'first' }
+						{ firstLBA: 512, info: 'second' }
+					]
+
+			afterEach ->
+				@bootRecordGetMasterStub.restore()
+
+			it 'should return the primary partition if no logical partition', (done) ->
+				partition.getPartitionFromDefinition 'image', { primary: 1 }, (error, definition) ->
+					expect(error).to.not.exist
+					expect(definition).to.deep.equal
+						firstLBA: 256
+						info: 'first'
+					done()
+
+			it 'should return the primary partition if logical partition is zero', (done) ->
+				partition.getPartitionFromDefinition 'image', { primary: 1, logical: 0 }, (error, definition) ->
+					expect(error).to.not.exist
+					expect(definition).to.deep.equal
+						firstLBA: 256
+						info: 'first'
+					done()
+
+			describe 'given partition is not extended', ->
+
+				beforeEach ->
+					@bootRecordGetExtendedStub = sinon.stub(bootRecord, 'getExtended')
+					@bootRecordGetExtendedStub.yields(null, undefined)
+
+				afterEach ->
+					@bootRecordGetExtendedStub.restore()
+
+				it 'should return an error', (done) ->
+					partition.getPartitionFromDefinition 'image', { primary: 1, logical: 2 }, (error, definition) ->
+						expect(error).to.be.an.instanceof(Error)
+						expect(error.message).to.equal('Not an extended partition: 1.')
+						expect(definition).to.not.exist
+						done()
+
+			describe 'given partition is extended', ->
+
+				beforeEach ->
+					@bootRecordGetExtendedStub = sinon.stub(bootRecord, 'getExtended')
+					@bootRecordGetExtendedStub.yields null,
+						partitions: [
+							{ firstLBA: 1024, info: 'third' }
+							{ firstLBA: 2048, info: 'fourth' }
+						]
+
+				afterEach ->
+					@bootRecordGetExtendedStub.restore()
+
+				it 'should return an error if partition was not found', (done) ->
+					partition.getPartitionFromDefinition 'image', { primary: 1, logical: 3 }, (error, definition) ->
+						expect(error).to.be.an.instanceof(Error)
+						expect(error.message).to.equal('Partition not found: 3.')
+						expect(definition).to.not.exist
+						done()
+
+				it 'should return the logical partition', (done) ->
+					partition.getPartitionFromDefinition 'image', { primary: 1, logical: 2 }, (error, definition) ->
+						expect(error).to.not.exist
+						expect(definition).to.deep.equal
+							firstLBA: 2304
+							info: 'fourth'
+						done()
+
 	describe '.getPosition()', ->
 
 		it 'should throw if no image', ->
@@ -203,89 +359,125 @@ describe 'Partition:', ->
 				partition.getPosition('image', { primary: 3, logical: 1 }, [ _.noop ])
 			.to.throw(errors.ResinInvalidParameter)
 
-		describe 'given an invalid primary partition', ->
+		describe 'given a partition was found', ->
 
 			beforeEach ->
-				@bootRecordGetMasterStub = sinon.stub(bootRecord, 'getMaster')
-				@bootRecordGetMasterStub.yields null,
-					partitions: [
-						{ firstLBA: 256, info: 'first' }
-						{ firstLBA: 512, info: 'second' }
-					]
+				@partitionGetPartitionFromDefinitionStub = sinon.stub(partition, 'getPartitionFromDefinition')
+				@partitionGetPartitionFromDefinitionStub.yields(null, firstLBA: 512)
 
 			afterEach ->
-				@bootRecordGetMasterStub.restore()
+				@partitionGetPartitionFromDefinitionStub.restore()
+
+			it 'should return the correct position', (done) ->
+				partition.getPosition 'image.img', { primary: 3, logical: 1 }, (error, position) ->
+					expect(error).to.not.exist
+					expect(position).to.equal(512 * 512)
+					done()
+
+		describe 'given a partition was not found', ->
+
+			beforeEach ->
+				@partitionGetPartitionFromDefinitionStub = sinon.stub(partition, 'getPartitionFromDefinition')
+				@partitionGetPartitionFromDefinitionStub.yields(new Error('Partition not found: 3.'))
+
+			afterEach ->
+				@partitionGetPartitionFromDefinitionStub.restore()
 
 			it 'should return an error', (done) ->
-				partition.getPosition 'image', { primary: 5 }, (error, position) ->
+				partition.getPosition 'image.img', { primary: 3, logical: 1 }, (error, position) ->
 					expect(error).to.be.an.instanceof(Error)
-					expect(error.message).to.equal('Partition not found: 5.')
+					expect(error.message).to.equal('Partition not found: 3.')
 					expect(position).to.not.exist
 					done()
 
-		describe 'given a valid primary partition', ->
+	describe '.copyPartition()', ->
+
+		it 'should throw if no image', ->
+			expect ->
+				partition.copyPartition(null, { primary: 3, logical: 1 }, 'output', _.noop)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if image is not a string', ->
+			expect ->
+				partition.copyPartition(123, { primary: 3, logical: 1 }, 'output', _.noop)
+			.to.throw(errors.ResinInvalidParameter)
+
+		it 'should throw if no definition', ->
+			expect ->
+				partition.copyPartition('image', null, 'output', _.noop)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if definition is not an object', ->
+			expect ->
+				partition.copyPartition('image', [ 'hello' ], 'output', _.noop)
+			.to.throw(errors.ResinInvalidParameter)
+
+		it 'should throw if no definition.primary', ->
+			expect ->
+				partition.copyPartition('image', { logical: 1 }, 'output', _.noop)
+			.to.throw(errors.ResinMissingOption)
+
+		it 'should throw if no output', ->
+			expect ->
+				partition.copyPartition('image', { primary: 3, logical: 1 }, null, _.noop)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if output is not a string', ->
+			expect ->
+				partition.copyPartition('image', { primary: 3, logical: 1 }, 123, _.noop)
+			.to.throw(errors.ResinInvalidParameter)
+
+		it 'should throw if no callback', ->
+			expect ->
+				partition.copyPartition('image', { primary: 3, logical: 1 }, 'output', null)
+			.to.throw(errors.ResinMissingParameter)
+
+		it 'should throw if callback is not a function', ->
+			expect ->
+				partition.copyPartition('image', { primary: 3, logical: 1 }, 'output', [ _.noop ])
+			.to.throw(errors.ResinInvalidParameter)
+
+		describe 'given a partition not was found', ->
 
 			beforeEach ->
-				@bootRecordGetMasterStub = sinon.stub(bootRecord, 'getMaster')
-				@bootRecordGetMasterStub.yields null,
-					partitions: [
-						{ firstLBA: 256, info: 'first' }
-						{ firstLBA: 512, info: 'second' }
-					]
+				@partitionGetPartitionFromDefinitionStub = sinon.stub(partition, 'getPartitionFromDefinition')
+				@partitionGetPartitionFromDefinitionStub.yields(new Error('Partition not found: 3.'))
 
 			afterEach ->
-				@bootRecordGetMasterStub.restore()
+				@partitionGetPartitionFromDefinitionStub.restore()
 
-			it 'should return the primary position if no logical partition', (done) ->
-				partition.getPosition 'image', { primary: 1 }, (error, position) ->
-					expect(error).to.not.exist
-					expect(position).to.equal(131072)
+			it 'should return an error', (done) ->
+				partition.copyPartition 'image', { primary: 3, logical: 1 }, 'output', (error) ->
+					expect(error).to.be.an.instanceof(Error)
+					expect(error.message).to.equal('Partition not found: 3.')
 					done()
 
-			it 'should return the primary position if logical partition is zero', (done) ->
-				partition.getPosition 'image', { primary: 1, logical: 0 }, (error, position) ->
-					expect(error).to.not.exist
-					expect(position).to.equal(131072)
+		describe 'given a partition without sectors', ->
+
+			beforeEach ->
+				@partitionGetPartitionFromDefinitionStub = sinon.stub(partition, 'getPartitionFromDefinition')
+				@partitionGetPartitionFromDefinitionStub.yields null,
+					firstLBA: 512
+
+			afterEach ->
+				@partitionGetPartitionFromDefinitionStub.restore()
+
+			it 'should return an error', (done) ->
+				partition.copyPartition 'image', { primary: 3, logical: 1 }, 'output', (error) ->
+					expect(error).to.be.an.instanceof(errors.ResinMissingOption)
 					done()
 
-			describe 'given partition is not extended', ->
+		describe 'given a partition without firstLBA', ->
 
-				beforeEach ->
-					@bootRecordGetExtendedStub = sinon.stub(bootRecord, 'getExtended')
-					@bootRecordGetExtendedStub.yields(null, undefined)
+			beforeEach ->
+				@partitionGetPartitionFromDefinitionStub = sinon.stub(partition, 'getPartitionFromDefinition')
+				@partitionGetPartitionFromDefinitionStub.yields null,
+					sectors: 2048
 
-				afterEach ->
-					@bootRecordGetExtendedStub.restore()
+			afterEach ->
+				@partitionGetPartitionFromDefinitionStub.restore()
 
-				it 'should return an error', (done) ->
-					partition.getPosition 'image', { primary: 1, logical: 2 }, (error, position) ->
-						expect(error).to.be.an.instanceof(Error)
-						expect(error.message).to.equal('Not an extended partition: 1.')
-						expect(position).to.not.exist
-						done()
-
-			describe 'given partition is extended', ->
-
-				beforeEach ->
-					@bootRecordGetExtendedStub = sinon.stub(bootRecord, 'getExtended')
-					@bootRecordGetExtendedStub.yields null,
-						partitions: [
-							{ firstLBA: 1024, info: 'third' }
-							{ firstLBA: 2048, info: 'fourth' }
-						]
-
-				afterEach ->
-					@bootRecordGetExtendedStub.restore()
-
-				it 'should return an error if partition was not found', (done) ->
-					partition.getPosition 'image', { primary: 1, logical: 3 }, (error, position) ->
-						expect(error).to.be.an.instanceof(Error)
-						expect(error.message).to.equal('Partition not found: 3.')
-						expect(position).to.not.exist
-						done()
-
-				it 'should return the position', (done) ->
-					partition.getPosition 'image', { primary: 1, logical: 2 }, (error, position) ->
-						expect(error).to.not.exist
-						expect(position).to.equal((2048 + 256) * 512)
-						done()
+			it 'should return an error', (done) ->
+				partition.copyPartition 'image', { primary: 3, logical: 1 }, 'output', (error) ->
+					expect(error).to.be.an.instanceof(errors.ResinMissingOption)
+					done()

@@ -1,6 +1,6 @@
 {
   "name": "resin-config-inject",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Resin.io config.json injection",
   "main": "build/inject.js",
   "homepage": "https://github.com/resin-io/resin-config-inject",

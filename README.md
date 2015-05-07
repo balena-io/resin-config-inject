@@ -108,6 +108,10 @@ If you're having any problem, please [raise an issue](https://github.com/resin-i
 ChangeLog
 ---------
 
+### v3.0.0
+
+- Perform injection in a FAT partition instead of serialising the JSON directly.
+
 ### v2.0.0
 
 - Handle partition definition instead of byte offsets in the public interface.

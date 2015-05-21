@@ -4,6 +4,7 @@ resin-config-inject
 [![npm version](https://badge.fury.io/js/resin-config-inject.svg)](http://badge.fury.io/js/resin-config-inject)
 [![dependencies](https://david-dm.org/resin-io/resin-config-inject.png)](https://david-dm.org/resin-io/resin-config-inject.png)
 [![Build Status](https://travis-ci.org/resin-io/resin-config-inject.svg?branch=master)](https://travis-ci.org/resin-io/resin-config-inject)
+[![Build status](https://ci.appveyor.com/api/projects/status/x9b8mvs318nm6b1i?svg=true)](https://ci.appveyor.com/project/jviotti/resin-config-inject)
 
 Resin.io config.json injection.
 

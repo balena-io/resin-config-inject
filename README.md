@@ -80,6 +80,37 @@ Examples:
 - `4` is the primary partition number four.
 - `3:1` is the first logical partition of the third primary extended partition.
 
+CLI
+---
+
+Resin Config Inject exposes a simple CLI tool to interact with the image configuration, mainly for debugging purposes.
+
+Install `resin-config-inject` globally to access it:
+
+```sh
+$ npm install -g resin-config-inject
+```
+
+That will add an `inject` script in your path.
+
+### read <image> <partition>
+
+Read and parse the configuration from an image.
+
+Example:
+
+```sh
+$ inject read path/to/image.img "4:1"
+```
+
+### write <image> <partition> <|config>
+
+Example:
+
+```sh
+$ cat config.json | inject write path/to/image.img "4:1"
+```
+
 Tests
 -----
 

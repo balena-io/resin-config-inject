@@ -26,6 +26,7 @@
   "author": "Juan Cruz Viotti <juanchiviotti@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "async": "^1.2.1",
     "chai": "~1.10.0",
     "coffee-script": "~1.8.0",
     "gulp": "~3.8.10",
@@ -38,14 +39,7 @@
     "sinon-chai": "~2.6.0"
   },
   "dependencies": {
-    "async": "^0.9.0",
-    "capitano": "^1.6.0",
-    "fatfs": "^0.10.3",
-    "fileslice": "^1.0.0",
-    "lodash": "^3.6.0",
-    "mbr": "^0.4.0",
-    "resin-errors": "^1.0.2",
-    "tmp": "^0.0.25",
-    "underscore.string": "^3.0.3"
+    "capitano": "^1.6.1",
+    "resin-image-config": "^1.0.0"
   }
 }

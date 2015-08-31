@@ -6,6 +6,8 @@ resin-config-inject
 [![Build Status](https://travis-ci.org/resin-io/resin-config-inject.svg?branch=master)](https://travis-ci.org/resin-io/resin-config-inject)
 [![Build status](https://ci.appveyor.com/api/projects/status/x9b8mvs318nm6b1i?svg=true)](https://ci.appveyor.com/project/jviotti/resin-config-inject)
 
+**DEPRECATED in favor of https://github.com/resin-io/resin-image-fs**
+
 Resin.io config.json injection.
 
 Installation

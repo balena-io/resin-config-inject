@@ -1,12 +1,6 @@
-var errors, partition, strategy, _;
+var imageConfig;
 
-_ = require('lodash');
-
-errors = require('resin-errors');
-
-partition = require('./partition');
-
-strategy = require('./strategies/fat');
+imageConfig = require('resin-image-config');
 
 
 /**
@@ -25,25 +19,12 @@ strategy = require('./strategies/fat');
  */
 
 exports.write = function(imagePath, config, definition, callback) {
-  if (config == null) {
-    throw new errors.ResinMissingParameter('config');
-  }
-  if (!_.isObject(config) || _.isArray(config)) {
-    throw new errors.ResinInvalidParameter('config', config, 'not an object');
-  }
-  if (callback == null) {
-    throw new errors.ResinMissingParameter('callback');
-  }
-  if (!_.isFunction(callback)) {
-    throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
-  }
-  definition = partition.parse(definition);
-  return partition.getPosition(imagePath, definition, function(error, position) {
-    if (error != null) {
-      return callback(error);
-    }
-    return strategy.write(imagePath, config, position, definition, callback);
-  });
+  var writeFiles;
+  writeFiles = {};
+  writeFiles[definition] = {
+    'config.json': JSON.stringify(config)
+  };
+  return imageConfig.write(imagePath, writeFiles).nodeify(callback);
 };
 
 
@@ -63,45 +44,10 @@ exports.write = function(imagePath, config, definition, callback) {
  */
 
 exports.read = function(imagePath, definition, callback) {
-  if (imagePath == null) {
-    throw new errors.ResinMissingParameter('image');
-  }
-  if (!_.isString(imagePath)) {
-    throw new errors.ResinInvalidParameter('image', imagePath, 'not a string');
-  }
-  if (callback == null) {
-    throw new errors.ResinMissingParameter('callback');
-  }
-  if (!_.isFunction(callback)) {
-    throw new errors.ResinInvalidParameter('callback', callback, 'not a function');
-  }
-  definition = partition.parse(definition);
-  return partition.getPosition(imagePath, definition, function(error, position) {
-    if (error != null) {
-      return callback(error);
-    }
-    return strategy.read(imagePath, position, definition, callback);
-  });
-};
-
-
-/**
- * @summary Write config object to a partition and return a stream
- * @public
- * @function
- *
- * @description The stream corresponds to the written partition.
- *
- * @param {String} image - image path
- * @param {Object} config - config object
- * @param {String|Number} definition - partition definition
- * @param {Function} callback - callback (error, stream)
- *
- * @example
- *	inject.writePartition 'path/to/rpi.img', { hello: 'world' }, '4:1', (error, stream) ->
- *		throw error if error?
- */
-
-exports.writePartition = function(imagePath, config, definition, callback) {
-  return strategy.writePartition(imagePath, config, partition.parse(definition), callback);
+  var readFiles;
+  readFiles = {};
+  readFiles[definition] = ['config.json'];
+  return imageConfig.read(imagePath, readFiles).then(function(results) {
+    return JSON.parse(results[definition]['config.json']);
+  }).nodeify(callback);
 };

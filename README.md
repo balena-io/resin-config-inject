@@ -53,23 +53,6 @@ inject.read 'path/to/rpi.img', '4:1', (error, config) ->
 	console.log(config)
 ```
 
-### inject.writePartition(String image, Object config, Partition partition, Function callback)
-
-Write a config object to a partition, and return a `ReadableStream` of the partition.
-
-The callback gets passed two arguments: `(error, stream)`.
-
-The partition is extracted into a temporary file. Once the returned stream emits
-the `close` event, the temporary file is removed.
-
-Example:
-
-```coffee
-inject.writePartition 'path/to/rpi.img', hello: 'world', '4:1', (error, stream) ->
-	throw error if error?
-	stream.pipe(anotherStream)
-```
-
 Partition Definition
 --------------------
 
